@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🧠 NeuroStack OS Installer"
+echo "🧠 NeuroStack OS Installer (Pro Version)"
 
 read -p "Installation directory [/opt/neurostack]: " DIR
 DIR=${DIR:-/opt/neurostack}
@@ -11,8 +11,9 @@ USERNAME=${USERNAME:-$USER}
 echo "📂 Creating directory $DIR..."
 sudo mkdir -p "$DIR"
 
-echo "🚚 Copying files..."
-sudo cp -r ./* "$DIR/"
+echo "🚚 Copying files with rsync..."
+# Use rsync to avoid copying .git and other junk, and be safer than cp -r
+sudo rsync -a --exclude=".git" ./ "$DIR/"
 sudo chown -R "$USERNAME":"$USERNAME" "$DIR"
 
 echo "⚙️ Configuring systemd service..."
