@@ -2,9 +2,9 @@ name: E2E & Validation
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Main ]
   pull_request:
-    branches: [ main ]
+    branches: [ Main ]
   workflow_dispatch:
 
 jobs:
@@ -31,6 +31,7 @@ jobs:
       - name: Start Services & Health Check
         run: |
           cd backend
+          export NEUROSTACK_API_KEY=neurostack-key
           node server.js &
           sleep 5
           curl -f -H "x-api-key: neurostack-key" http://localhost:3001/health
