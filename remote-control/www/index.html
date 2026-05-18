@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>NeuroStack Cluster</title>
+<style>
+body { background:#020617;color:#00f0ff;font-family:monospace; padding: 20px;}
+button { margin:5px;padding:10px;background:#0ea5e9;border:none; color: white; cursor: pointer;}
+button:hover { background: #0284c7; }
+.panel { border:1px solid #00f0ff;margin:10px 0;padding:15px; background: rgba(0, 240, 255, 0.05);}
+pre { background: #000; padding: 10px; border: 1px solid #333; overflow: auto; color: #fff;}
+select { background: #020617; color: #00f0ff; border: 1px solid #00f0ff; padding: 5px; }
+</style>
+</head>
+
+<body>
+
+<h1>🧠 NeuroStack Cluster Dashboard</h1>
+
+<div class="panel">
+<h2>Nós</h2>
+<select id="nodeSelect"></select>
+</div>
+
+<div class="panel">
+<h2>Serviços</h2>
+<button onclick="startService('ollama')">Start Ollama</button>
+<button onclick="stopService('ollama')">Stop Ollama</button>
+<button onclick="startService('jules')">Start Jules</button>
+<button onclick="stopService('jules')">Stop Jules</button>
+</div>
+
+<div class="panel">
+<h2>Status do Cluster</h2>
+<pre id="status">Carregando...</pre>
+</div>
+
+<script>
+const API="http://" + window.location.hostname + ":3001";
+const KEY="neurostack-key";
+
+let currentNode = "";
+
+async function loadNodes(){
+    try {
+        const res = await fetch(API+"/cluster/nodes",{headers:{"x-api-key":KEY}});
+        const nodes = await res.json();
+
+        const sel = document.getElementById("nodeSelect");
+        sel.innerHTML="";
+
+        nodes.forEach(n=>{
+            const opt=document.createElement("option");
+            opt.value=n.name;
+            opt.text=n.name + " (" + n.ip + ")";
+            sel.appendChild(opt);
+        });
+
+        if (nodes.length > 0) {
+            currentNode = nodes[0].name;
+        }
+
+        sel.onchange = () => currentNode = sel.value;
+    } catch (e) {
+        console.error("Erro ao carregar nós", e);
+    }
+}
+
+async function startService(s){
+    try {
+        const res = await fetch(`${API}/cluster/start/${s}/${currentNode}`,{
+            method:"POST",
+            headers:{"x-api-key":KEY}
+        });
+        const data = await res.json();
+        console.log("Start result:", data);
+        refresh();
+    } catch (e) {
+        alert("Erro ao iniciar serviço");
+    }
+}
+
+async function stopService(s){
+    try {
+        const res = await fetch(`${API}/cluster/stop/${s}/${currentNode}`,{
+            method:"POST",
+            headers:{"x-api-key":KEY}
+        });
+        const data = await res.json();
+        console.log("Stop result:", data);
+        refresh();
+    } catch (e) {
+        alert("Erro ao parar serviço");
+    }
+}
+
+async function refresh(){
+    try {
+        const res = await fetch(API+"/cluster/status",{headers:{"x-api-key":KEY}});
+        const data = await res.json();
+        document.getElementById("status").innerText = JSON.stringify(data,null,2);
+    } catch (e) {
+        document.getElementById("status").innerText = "Erro ao buscar status";
+    }
+}
+
+setInterval(refresh,5000);
+loadNodes().then(refresh);
+</script>
+
+</body>
+</html>

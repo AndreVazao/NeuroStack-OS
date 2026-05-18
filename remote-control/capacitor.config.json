@@ -1,0 +1,8 @@
+{
+  "appId": "com.neurostack.remote",
+  "appName": "NeuroStack Remote",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

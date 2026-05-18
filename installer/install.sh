@@ -12,9 +12,12 @@ echo "📂 Creating directory $DIR..."
 sudo mkdir -p "$DIR"
 
 echo "🚚 Copying files with rsync..."
-# Use rsync to avoid copying .git and other junk, and be safer than cp -r
 sudo rsync -a --exclude=".git" ./ "$DIR/"
 sudo chown -R "$USERNAME":"$USERNAME" "$DIR"
+
+echo "📦 Installing dependencies..."
+cd "$DIR/backend" && npm install
+cd "$DIR/scheduler" && npm install
 
 echo "⚙️ Configuring systemd service..."
 sudo cp "$DIR/systemd/neurostack.service" /etc/systemd/system/
