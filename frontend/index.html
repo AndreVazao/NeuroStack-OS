@@ -1,117 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuroStack JARVIS</title>
-    <style>
-        body { background:#020617; color:#00f0ff; font-family:'Courier New', monospace; padding: 20px; }
-        h1 { border-bottom: 2px solid #00f0ff; padding-bottom: 10px; }
-        button {
-            margin:5px; padding:10px 15px; background:transparent;
-            border:1px solid #00f0ff; color:#00f0ff; cursor:pointer;
-            transition: all 0.3s;
-        }
-        button:hover { background:#00f0ff; color:#020617; }
-        .panel { border:1px solid #00f0ff; padding:15px; margin:15px 0; background: rgba(0, 240, 255, 0.05); }
-        .status-val { color: #fff; font-weight: bold; }
-        pre { background: #000; padding: 10px; border: 1px solid #333; overflow: auto; }
-    </style>
+<meta charset="UTF-8">
+<title>NeuroStack Cluster</title>
+<style>
+body { background:#020617;color:#00f0ff;font-family:monospace; padding: 20px;}
+button { margin:5px;padding:10px;background:#0ea5e9;border:none; color: white; cursor: pointer;}
+button:hover { background: #0284c7; }
+.panel { border:1px solid #00f0ff;margin:10px 0;padding:15px; background: rgba(0, 240, 255, 0.05);}
+pre { background: #000; padding: 10px; border: 1px solid #333; overflow: auto; color: #fff;}
+select { background: #020617; color: #00f0ff; border: 1px solid #00f0ff; padding: 5px; }
+</style>
 </head>
+
 <body>
 
-    <h1>🧠 NEUROSTACK OS - JARVIS INTERFACE</h1>
+<h1>🧠 NeuroStack Cluster Dashboard</h1>
 
-    <div class="panel">
-        <h2>📊 System Telemetry</h2>
-        <div>RAM Free: <span id="ram" class="status-val">--</span> MB</div>
-        <div>CPU Load (1/5/15m): <span id="cpu" class="status-val">--</span></div>
-        <div>Uptime: <span id="uptime" class="status-val">--</span>s</div>
-    </div>
+<div class="panel">
+<h2>Nós</h2>
+<select id="nodeSelect"></select>
+</div>
 
-    <div class="panel">
-        <h2>🛠 Service Control</h2>
-        <div>
-            <strong>Ollama:</strong>
-            <button onclick="cmd('start','ollama')">START</button>
-            <button onclick="cmd('stop','ollama')">STOP</button>
-        </div>
-        <div>
-            <strong>Jules:</strong>
-            <button onclick="cmd('start','jules')">START</button>
-            <button onclick="cmd('stop','jules')">STOP</button>
-        </div>
-        <div>
-            <strong>Godmode:</strong>
-            <button onclick="cmd('start','godmode')">START</button>
-        </div>
-        <div>
-            <strong>MAD:</strong>
-            <button onclick="cmd('start','mad')">START</button>
-        </div>
-    </div>
+<div class="panel">
+<h2>Serviços</h2>
+<button onclick="startService('ollama')">Start Ollama</button>
+<button onclick="stopService('ollama')">Stop Ollama</button>
+<button onclick="startService('jules')">Start Jules</button>
+<button onclick="stopService('jules')">Stop Jules</button>
+</div>
 
-    <div class="panel">
-        <h2>🤖 AI Agents</h2>
-        <button onclick="runAgent()">EXECUTE AGENT LOOP</button>
-        <div id="agent-status"></div>
-    </div>
+<div class="panel">
+<h2>Status do Cluster</h2>
+<pre id="status">Carregando...</pre>
+</div>
 
-    <div class="panel">
-        <h2>🧩 Plugins</h2>
-        <pre id="plugins-list">No plugins loaded</pre>
-    </div>
+<script>
+const API="http://" + window.location.hostname + ":3001";
+const KEY="neurostack-key";
 
-    <script>
-        // Update this to your Tailscale IP if needed
-        const API = "http://" + window.location.hostname + ":3001";
-        const KEY = "neurostack-key";
+let currentNode = "";
 
-        async function refresh() {
-            try {
-                const r = await fetch(API + "/status", { headers: { "x-api-key": KEY } });
-                const data = await r.json();
+async function loadNodes(){
+    try {
+        const res = await fetch(API+"/cluster/nodes",{headers:{"x-api-key":KEY}});
+        const nodes = await res.json();
 
-                document.getElementById("ram").innerText = Math.round(data.ram / 1024 / 1024);
-                document.getElementById("cpu").innerText = data.cpu.map(v => v.toFixed(2)).join(" / ");
-                document.getElementById("uptime").innerText = data.uptime;
+        const sel = document.getElementById("nodeSelect");
+        sel.innerHTML="";
 
-                document.getElementById("plugins-list").innerText = JSON.stringify(data.plugins, null, 2);
-            } catch (e) {
-                console.error("Telemetry failure", e);
-            }
+        nodes.forEach(n=>{
+            const opt=document.createElement("option");
+            opt.value=n.name;
+            opt.text=n.name + " (" + n.ip + ")";
+            sel.appendChild(opt);
+        });
+
+        if (nodes.length > 0) {
+            currentNode = nodes[0].name;
         }
 
-        async function cmd(action, service) {
-            try {
-                const r = await fetch(`${API}/${action}/${service}`, {
-                    method: "POST",
-                    headers: { "x-api-key": KEY }
-                });
-                const res = await r.json();
-                alert(res.message);
-                refresh();
-            } catch (e) {
-                alert("Command failed");
-            }
-        }
+        sel.onchange = () => currentNode = sel.value;
+    } catch (e) {
+        console.error("Erro ao carregar nós", e);
+    }
+}
 
-        async function runAgent() {
-            try {
-                const r = await fetch(API + "/agent/run", {
-                    method: "POST",
-                    headers: { "x-api-key": KEY }
-                });
-                const res = await r.json();
-                document.getElementById("agent-status").innerText = res.message;
-            } catch (e) {
-                alert("Agent execution failed");
-            }
-        }
-
-        setInterval(refresh, 2000);
+async function startService(s){
+    try {
+        const res = await fetch(`${API}/cluster/start/${s}/${currentNode}`,{
+            method:"POST",
+            headers:{"x-api-key":KEY}
+        });
+        const data = await res.json();
+        console.log("Start result:", data);
         refresh();
-    </script>
+    } catch (e) {
+        alert("Erro ao iniciar serviço");
+    }
+}
+
+async function stopService(s){
+    try {
+        const res = await fetch(`${API}/cluster/stop/${s}/${currentNode}`,{
+            method:"POST",
+            headers:{"x-api-key":KEY}
+        });
+        const data = await res.json();
+        console.log("Stop result:", data);
+        refresh();
+    } catch (e) {
+        alert("Erro ao parar serviço");
+    }
+}
+
+async function refresh(){
+    try {
+        const res = await fetch(API+"/cluster/status",{headers:{"x-api-key":KEY}});
+        const data = await res.json();
+        document.getElementById("status").innerText = JSON.stringify(data,null,2);
+    } catch (e) {
+        document.getElementById("status").innerText = "Erro ao buscar status";
+    }
+}
+
+setInterval(refresh,5000);
+loadNodes().then(refresh);
+</script>
 
 </body>
 </html>
