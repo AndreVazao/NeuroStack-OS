@@ -2,7 +2,7 @@ name: Build Windows EXE
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Main ]
   workflow_dispatch:
 
 jobs:
@@ -26,27 +26,27 @@ jobs:
           cd backend
           npx pkg . --targets node20-win-x64 --output ../neurostack-backend.exe
 
-      - name: Create Inno Setup script
+      - name: Create NSIS script
         run: |
-          echo '[Setup]' > neurostack.iss
-          echo 'AppName=NeuroStack OS' >> neurostack.iss
-          echo 'AppVersion=1.0' >> neurostack.iss
-          echo 'DefaultDirName={pf}\NeuroStackOS' >> neurostack.iss
-          echo 'DefaultGroupName=NeuroStack OS' >> neurostack.iss
-          echo 'OutputDir=.' >> neurostack.iss
-          echo 'OutputBaseFilename=NeuroStackSetup' >> neurostack.iss
-          echo 'Compression=lzma' >> neurostack.iss
-          echo 'SolidCompression=yes' >> neurostack.iss
-          echo '[Files]' >> neurostack.iss
-          echo 'Source: "neurostack-backend.exe"; DestDir: "{app}"' >> neurostack.iss
-          echo 'Source: "frontend\*"; DestDir: "{app}\frontend"; Flags: recursesubdirs' >> neurostack.iss
-          echo '[Icons]' >> neurostack.iss
-          echo 'Name: "{group}\NeuroStack OS"; Filename: "{app}\neurostack-backend.exe"' >> neurostack.iss
+          echo '!include "MUI2.nsh"' > neurostack.nsi
+          echo 'Name "NeuroStack OS"' >> neurostack.nsi
+          echo 'OutFile "NeuroStackSetup.exe"' >> neurostack.nsi
+          echo 'InstallDir "$PROGRAMFILES64\NeuroStackOS"' >> neurostack.nsi
+          echo 'Section "MainSection" SEC01' >> neurostack.nsi
+          echo '  SetOutPath "$INSTDIR"' >> neurostack.nsi
+          echo '  File "neurostack-backend.exe"' >> neurostack.nsi
+          echo '  SetOutPath "$INSTDIR\frontend"' >> neurostack.nsi
+          echo '  File /r "frontend\*"' >> neurostack.nsi
+          echo '  SetOutPath "$INSTDIR\plugins"' >> neurostack.nsi
+          echo '  File /r "plugins\*"' >> neurostack.nsi
+          echo '  CreateShortcut "$DESKTOP\NeuroStack OS.lnk" "$INSTDIR\neurostack-backend.exe"' >> neurostack.nsi
+          echo 'SectionEnd' >> neurostack.nsi
+        shell: bash
 
       - name: Compile Installer
         uses: joncloud/makensis-action@v4
         with:
-          script-file: neurostack.iss
+          script-file: neurostack.nsi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
