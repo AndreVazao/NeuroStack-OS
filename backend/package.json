@@ -2,9 +2,11 @@
   "name": "neurostack-backend",
   "version": "1.0.0",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
     "test": "jest --forceExit",
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:exe": "pkg . --targets node18-win-x64 --output dist/neurostack.exe"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -18,6 +20,10 @@
   "pkg": {
     "assets": [
       "../plugins/*.js"
-    ]
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
   }
 }

@@ -2,8 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const { API_KEY } = require("../config");
 
+const basePath = process.pkg
+  ? path.dirname(process.execPath)
+  : __dirname;
+
 const nodesData = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "nodes.json"), "utf8")
+    fs.readFileSync(path.join(basePath, "nodes.json"), "utf8")
 );
 const nodes = nodesData.nodes;
 
