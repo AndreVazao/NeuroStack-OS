@@ -1,0 +1,11 @@
+{
+  "name": "implement-auth-middleware",
+  "version": "1.0.0",
+  "description": "Implement Auth Middleware",
+  "entry": "index.js",
+  "permissions": [
+    "system"
+  ],
+  "sandbox": true,
+  "timeout": 5000
+}
