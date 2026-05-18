@@ -26,43 +26,69 @@ const plugins = loadPlugins();
 
 // 📊 STATUS GLOBAL
 app.get("/status", (req, res) => {
-    const state = {};
+    try {
+        const state = {};
 
-    for (let key in services) {
-        state[key] = status(key);
+        for (let key in services) {
+            state[key] = status(key);
+        }
+
+        res.json({
+            ram_free: Math.round(os.freemem() / 1024 / 1024),
+            cpu: os.loadavg(),
+            services: state,
+            plugins: plugins.map(p => ({ name: p.name || "unknown", status: "loaded" }))
+        });
+    } catch (error) {
+        log(`Error in /status: ${error.message}`);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-
-    res.json({
-        ram_free: Math.round(os.freemem() / 1024 / 1024),
-        cpu: os.loadavg(),
-        services: state,
-        plugins: plugins.map(p => ({ name: p.name || "unknown", status: "loaded" }))
-    });
 });
 
 // ▶️ START
 app.post("/start/:name", (req, res) => {
-    const name = req.params.name;
-    const svc = services[name];
+    try {
+        const name = req.params.name;
+        const svc = services[name];
 
-    if (!svc) return res.status(404).send("Not found");
+        if (!svc) return res.status(404).send("Not found");
 
-    start(svc.name, svc.cmd, svc.args, svc.cwd);
-    res.json({ ok: true });
+        start(svc.name, svc.cmd, svc.args, svc.cwd);
+        res.json({ ok: true });
+    } catch (error) {
+        log(`Error in /start/${req.params.name}: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ⏹ STOP
 app.post("/stop/:name", (req, res) => {
-    stop(req.params.name);
-    res.json({ ok: true });
+    try {
+        stop(req.params.name);
+        res.json({ ok: true });
+    } catch (error) {
+        log(`Error in /stop/${req.params.name}: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ❤️ HEALTH
 app.get("/health", (req, res) => {
-    res.json({
-        status: "ok",
-        uptime: process.uptime()
-    });
+    try {
+        const state = {};
+        for (let key in services) {
+            state[key] = status(key);
+        }
+        res.json({
+            status: "ok",
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+            services: state
+        });
+    } catch (error) {
+        log(`Error in /health: ${error.message}`);
+        res.status(500).json({ error: "Health check failed" });
+    }
 });
 
 // 🔌 RUN PLUGIN
@@ -74,6 +100,7 @@ app.post("/plugin/:name", (req, res) => {
         p.run();
         res.json({ ok: true });
     } catch (e) {
+        log(`Error running plugin ${req.params.name}: ${e.message}`);
         res.status(500).json({ error: e.toString() });
     }
 });
@@ -82,37 +109,59 @@ app.post("/plugin/:name", (req, res) => {
 
 // LISTAR NÓS
 app.get("/cluster/nodes", (req, res) => {
-    res.json(cluster.getNodes());
+    try {
+        res.json(cluster.getNodes());
+    } catch (error) {
+        log(`Error in /cluster/nodes: ${error.message}`);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 // STATUS DE TODOS
 app.get("/cluster/status", async (req, res) => {
-    const data = await cluster.broadcast("/status");
-    res.json(data);
+    try {
+        const data = await cluster.broadcast("/status");
+        res.json(data);
+    } catch (error) {
+        log(`Error in /cluster/status: ${error.message}`);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 // START REMOTO
 app.post("/cluster/start/:service/:node", async (req, res) => {
     const { service, node } = req.params;
+    try {
+        const n = cluster.getNodes().find(x => x.name === node);
+        if (!n) return res.status(404).send("Node not found");
 
-    const n = cluster.getNodes().find(x => x.name === node);
-    if (!n) return res.status(404).send("Node not found");
-
-    const r = await cluster.send(n, `/start/${service}`, "POST");
-    res.json(r);
+        const r = await cluster.send(n, `/start/${service}`, "POST");
+        res.json(r);
+    } catch (error) {
+        log(`Error in /cluster/start/${service}/${node}: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // STOP REMOTO
 app.post("/cluster/stop/:service/:node", async (req, res) => {
     const { service, node } = req.params;
+    try {
+        const n = cluster.getNodes().find(x => x.name === node);
+        if (!n) return res.status(404).send("Node not found");
 
-    const n = cluster.getNodes().find(x => x.name === node);
-    if (!n) return res.status(404).send("Node not found");
-
-    const r = await cluster.send(n, `/stop/${service}`, "POST");
-    res.json(r);
+        const r = await cluster.send(n, `/stop/${service}`, "POST");
+        res.json(r);
+    } catch (error) {
+        log(`Error in /cluster/stop/${service}/${node}: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-    log(`🔥 NeuroStack Backend running on ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, "0.0.0.0", () => {
+        log(`🔥 NeuroStack Backend running on ${PORT}`);
+    });
+}
+
+module.exports = app;

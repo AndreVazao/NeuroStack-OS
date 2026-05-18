@@ -1,12 +1,11 @@
 const fs = require("fs");
 const path = require("path");
+const { API_KEY } = require("../config");
 
 const nodesData = JSON.parse(
     fs.readFileSync(path.join(__dirname, "nodes.json"), "utf8")
 );
 const nodes = nodesData.nodes;
-
-const API_KEY = "neurostack-key";
 
 async function send(node, endpoint, method="GET") {
     const url = `http://${node.ip}:3001${endpoint}`;
