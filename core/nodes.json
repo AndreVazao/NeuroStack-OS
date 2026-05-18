@@ -1,0 +1,14 @@
+{
+  "nodes": [
+    {
+      "name": "main-pc",
+      "ip": "100.69.225.48",
+      "role": "master"
+    },
+    {
+      "name": "mobile",
+      "ip": "100.109.173.115",
+      "role": "controller"
+    }
+  ]
+}
