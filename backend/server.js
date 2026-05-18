@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const os = require("os");
+const fs = require("fs");
+const path = require("path");
 
 const { API_KEY, PORT } = require("./config");
 const { start, stop, status } = require("./processManager");
@@ -11,6 +13,10 @@ const cluster = require("./cluster/clusterManager");
 const { checkForUpdates } = require("./updater");
 const dashboard = require("./dashboard");
 const pluginAPI = require("./plugin-api");
+
+// AI CTO & Factory
+const { startAutonomousLoop } = require("./autonomous-loop");
+const { startStartupFactory } = require("./startup-factory");
 
 const app = express();
 app.use(cors());
@@ -49,7 +55,8 @@ app.get("/status", (req, res) => {
                 name: p.name || "unknown",
                 status: "loaded",
                 manifest: p.manifest
-            }))
+            })),
+            taskQueue: global.taskQueue || []
         });
     } catch (error) {
         log(`Error in /status: ${error.message}`);
@@ -103,9 +110,8 @@ app.get("/health", (req, res) => {
     }
 });
 
-// 🔌 RUN PLUGIN (Legacy endpoint, redirected to new router logic)
+// 🔌 RUN PLUGIN
 app.post("/plugin/:name", async (req, res) => {
-    // Hot-reload plugins for this request
     plugins = loadPlugins();
     const p = plugins.find(pl => pl.name === req.params.name);
     if (!p) return res.status(404).send("Plugin not found");
@@ -117,6 +123,31 @@ app.post("/plugin/:name", async (req, res) => {
         log(`Error running plugin ${req.params.name}: ${e.message}`);
         res.status(500).json({ error: e.toString() });
     }
+});
+
+// --- OBSERVABILITY ENDPOINTS ---
+
+app.get("/api/ai/status", (req, res) => {
+    res.json({
+        tasks: global.taskQueue || [],
+        loop_interval: 60000,
+        factory_interval: 3600000
+    });
+});
+
+app.get("/api/logs", (req, res) => {
+    const systemLog = path.join(__dirname, "system.log");
+    const auditLog = path.join(__dirname, "audit.log");
+
+    let logs = "";
+    if (fs.existsSync(systemLog)) logs += fs.readFileSync(systemLog, "utf8");
+    if (fs.existsSync(auditLog)) logs += "\n--- AUDIT LOG ---\n" + fs.readFileSync(auditLog, "utf8");
+
+    res.send(logs);
+});
+
+app.get("/api/plugins/rejected", (req, res) => {
+    res.json(global.rejectedPlugins || []);
 });
 
 // --- CLUSTER ENDPOINTS ---
@@ -179,6 +210,10 @@ if (require.main === module) {
         setTimeout(() => {
           checkForUpdates();
         }, 5000);
+
+        // 🧠 Start AI Loops
+        startAutonomousLoop();
+        startStartupFactory();
     });
 }
 

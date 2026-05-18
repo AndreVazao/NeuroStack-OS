@@ -1,0 +1,14 @@
+{
+  "roadmap": [
+    {
+      "title": "Optimize Process Management",
+      "priority": "medium",
+      "type": "optimize"
+    },
+    {
+      "title": "Implement Auth Middleware",
+      "priority": "high",
+      "type": "feature"
+    }
+  ]
+}
