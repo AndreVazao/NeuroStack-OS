@@ -8,6 +8,9 @@ const services = require("./serviceRegistry");
 const { loadPlugins } = require("./pluginLoader");
 const { log } = require("./logger");
 const cluster = require("./cluster/clusterManager");
+const { checkForUpdates } = require("./updater");
+const dashboard = require("./dashboard");
+const pluginAPI = require("./plugin-api");
 
 const app = express();
 app.use(cors());
@@ -15,14 +18,19 @@ app.use(express.json());
 
 // 🔐 AUTH
 app.use((req, res, next) => {
+    // Basic API Key check
     if (req.headers["x-api-key"] !== API_KEY) {
         return res.status(403).send("Forbidden");
     }
     next();
 });
 
+// 🔌 MISSION CONTROL & PLUGIN API
+app.use("/api", dashboard);
+app.use("/api", pluginAPI);
+
 // 🔌 LOAD PLUGINS
-const plugins = loadPlugins();
+let plugins = loadPlugins();
 
 // 📊 STATUS GLOBAL
 app.get("/status", (req, res) => {
@@ -37,7 +45,11 @@ app.get("/status", (req, res) => {
             ram_free: Math.round(os.freemem() / 1024 / 1024),
             cpu: os.loadavg(),
             services: state,
-            plugins: plugins.map(p => ({ name: p.name || "unknown", status: "loaded" }))
+            plugins: plugins.map(p => ({
+                name: p.name || "unknown",
+                status: "loaded",
+                manifest: p.manifest
+            }))
         });
     } catch (error) {
         log(`Error in /status: ${error.message}`);
@@ -91,14 +103,16 @@ app.get("/health", (req, res) => {
     }
 });
 
-// 🔌 RUN PLUGIN
-app.post("/plugin/:name", (req, res) => {
+// 🔌 RUN PLUGIN (Legacy endpoint, redirected to new router logic)
+app.post("/plugin/:name", async (req, res) => {
+    // Hot-reload plugins for this request
+    plugins = loadPlugins();
     const p = plugins.find(pl => pl.name === req.params.name);
     if (!p) return res.status(404).send("Plugin not found");
 
     try {
-        p.run();
-        res.json({ ok: true });
+        const result = await p.run(req.body);
+        res.json({ ok: true, result });
     } catch (e) {
         log(`Error running plugin ${req.params.name}: ${e.message}`);
         res.status(500).json({ error: e.toString() });
@@ -161,6 +175,10 @@ app.post("/cluster/stop/:service/:node", async (req, res) => {
 if (require.main === module) {
     app.listen(PORT, "0.0.0.0", () => {
         log(`🔥 NeuroStack Backend running on ${PORT}`);
+        // 🚀 Auto-update
+        setTimeout(() => {
+          checkForUpdates();
+        }, 5000);
     });
 }
 
